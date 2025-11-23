@@ -64,7 +64,7 @@
     #video {
         border-radius: 25px;
         width: 100%;
-        min-height: 250px;
+        aspect-ratio: 16/9;
     }
 
     #box {
@@ -79,6 +79,7 @@
     }
 
     #video-box {
+        
         position: relative;
         height: auto;
         grid-area: videobox;
@@ -175,9 +176,7 @@
             <br><br><br><br>
             <h1 id="video-title">video title</h1>
             <div id="video-box-slim">
-                <video id="video" type="video/mp4" muted playsinline>
-                    Your browser does not support this video. Please use a different browser.
-                </video>
+                <iframe id = "video" allowfullscreen frameborder="0"referrerpolicy="strict-origin-when-cross-origin" title="video_1"></iframe>
                 <p id="time-label">0:00/0:00</p>
             </div>
 
@@ -212,6 +211,7 @@
         <p id="login-error" style="color:red"></p>
     </div>
 </div>
+<script src="https://player.vimeo.com/api/player.js"></script>
 <script>
     let jwtToken = null;
     let currentUser = null;
@@ -264,6 +264,8 @@
 
     var questionData;
 
+    var player;
+
     async function loadData() {
         try {
             const res = await fetch("https://eureka-tests-backend.onrender.com/api/video-data");
@@ -272,6 +274,7 @@
             introText.innerHTML = data.introText;
             videoTitle.textContent = data.title;
             videoElem.src = data.videoUrl;  // e.g. https://render/files/video.mp4
+            player = new Vimeo.Player(videoElem);
             questionData = data.questions;
 
             nextQuestionTime = questionData[0].timeStamp;
@@ -316,7 +319,7 @@
         const username = currentUser;
         const token = jwtToken;
         try {
-            const res = await fetch("https://YOUR-RENDER-URL.onrender.com/api/submit", {
+            const res = await fetch("https://eureka-tests-backend.onrender.com/api/submit", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -354,7 +357,7 @@
         radios.innerHTML = "";
         questionTitle.style = "visibility: hidden;";
         promptElem.textContent = "There are currently no questions to answer.";
-        videoElem.play();
+        player.play();
         questionShown = false;
         currentQuestion++;
         if (questionData.length > currentQuestion){ 
@@ -374,11 +377,11 @@
         document.getElementById("submit").style = "display:none";
         boxElem.style = "display: grid";
         continueVideo();
-        setInterval(function () {
-            var num = formatTime(videoElem.currentTime);
-            timeLabel.textContent = num + "/" + formatTime(videoElem.duration);
+        setInterval(async function () {
+            var num = formatTime(await player.getCurrentTime());
+            timeLabel.textContent = num + "/" + formatTime(await player.getDuration());
             if (num == nextQuestionTime && !questionShown) {
-                videoElem.pause();
+                player.pause();
                 showQuestion();
                 questionShown = true;
             }
