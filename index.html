@@ -1,1 +1,330 @@
+<!DOCTYPE html>
+<html>
+<style>
+    /* Container spacing */
+    #radios {
+        font-family: sans-serif;
+    }
 
+    #radios label {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 8px 0;
+        cursor: pointer;
+        font-size: 16px;
+    }
+
+    /* Hide default radio */
+    #radios input[type="radio"] {
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        position: absolute;
+        opacity: 0;
+    }
+
+    /* Custom radio circle */
+    #radios label::before {
+        content: "";
+        width: 18px;
+        height: 18px;
+        border: 2px solid #777;
+        border-radius: 50%;
+        display: inline-block;
+        transition: 0.2s;
+    }
+
+    /* Selected state */
+    #radios input[type="radio"]:checked+label::before {
+        border-color: #4A90E2;
+        background-color: #4A90E2;
+        box-shadow: inset 0 0 0 4px white;
+    }
+
+    /* Hover effect */
+    #radios label:hover::before {
+        border-color: #4A90E2;
+    }
+</style>
+<style>
+    html {
+        background-color: whitesmoke;
+    }
+    #container {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        font-family: Arial, Helvetica, sans-serif;
+    }
+
+    #video {
+        border-radius: 25px;
+        width: 100%;
+        min-height: 250px;
+    }
+
+    #box {
+        display: grid;
+        grid-template-areas: "videobox questions";
+        grid-template-columns: 2fr 1fr;
+        position: relative;
+        height: 100%;
+        padding: 5px 75px 5px 75px;
+        gap: 75px;
+        overflow-y: hidden;
+    }
+
+    #video-box {
+        position: relative;
+        height: auto;
+        grid-area: videobox;
+        width: auto;
+    }
+
+    #video-box-slim {
+        position: relative;
+    }
+
+    #video-box-slim #time-label {
+        display: inline-block;
+        position: absolute;
+        left: 0;
+        bottom: 0;
+        color: white;
+        margin-left: 20px;
+        margin-bottom: 20px;
+        font-family: Arial, Helvetica, sans-serif;
+    }
+
+    #questions-box {
+        grid-area: questions;
+        margin-top: 60px;
+        background-color: rgba(128, 128, 128, 0.318);
+        margin-bottom: 100px;
+        padding-bottom: 20px;
+        border-radius: 25px;
+    }
+
+    #video-title {
+        margin-left: 15px;
+    }
+
+    #questions-box #prompt {
+        margin: 0 25px;
+    }
+
+    #questions-box #radios {
+        margin: 0 35px;
+    }
+
+    #questions-box #buttons {
+        display: flex;
+        margin: 0 20px;
+        height: 50px;
+        justify-content: center;
+        gap: 15px;
+    }
+
+    #buttons button {
+        padding: 0 25px;
+        background-color: rgba(255, 255, 255, 0.551);
+        border-radius: 5px;
+    }
+
+    #buttons button:hover {
+        background-color: rgba(255, 255, 255, 0.253);
+    }
+
+    #question-title {
+        text-align: center;
+    }
+
+    #pretest-box {
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+
+        width: 600px;
+        background-color: rgba(128, 128, 128, 0.318);
+        padding: 25px;
+        border-radius: 25px;
+        top: 5%;
+        text-align: center;
+        margin-bottom: 50px;
+    }
+
+    #pretest-box ul,
+    li {
+        text-align: left;
+    }
+
+    #pretest-box button {
+        padding: 0 45px;
+        background-color: rgba(255, 255, 255, 0.551);
+        border-radius: 5px;
+        height: 45px;
+    }
+</style>
+<div id="container">
+    <div id="box" style="display: none;">
+        <div id="video-box">
+            <br><br><br><br>
+            <h1 id="video-title">video title</h1>
+            <div id="video-box-slim">
+                <video id="video" type="video/mp4" muted playsinline>
+                    Your browser does not support this video. Please use a different browser.
+                </video>
+                <p id="time-label">0:00/0:00</p>
+            </div>
+
+        </div>
+        <div id="questions-box">
+            <h1 id="question-title">Question 0</h1>
+            <p id="prompt">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent dictum sollicitudin augue,
+                et suscipit turpis tincidunt at. Curabitur rhoncus euismod nisl, in mattis tortor consectetur sed?</p>
+            <br>
+            <div id="radios">
+                
+            </div><br>
+            <div id="buttons">
+                <button id="skip" onclick="submitAnswer(true)">I'm not sure</button>
+                <button id="submit" onclick="submitAnswer()">Submit</button>
+                <button id="continue" onclick="continueVideo()" style="display: none;">Continue</button>
+            </div>
+        </div>
+    </div>
+    <div id="pretest-box">
+        <h1>Your Assessment</h1>
+        <div style="margin: 0 40px;text-align: left;" id="intro-text">
+            
+        </div>
+        <button onclick="startTest()">Start Assessment</button>
+    </div>
+</div>
+<script src = "testdata_01.js"></script>
+<script>
+    var boxElem = document.getElementById("box");
+    var videoElem = document.getElementById("video");
+    var timeLabel = document.getElementById("time-label");
+    var radios = document.getElementById("radios");
+    var promptElem = document.getElementById("prompt");
+    var questionTitle = document.getElementById("question-title");
+    var videoTitle = document.getElementById("video-title");
+    var introText = document.getElementById("intro-text");
+
+    var nextQuestionTime;
+    var currentQuestion = -1;
+    var questionShown = false;
+    var responses = {};
+    var numberOfCorrect = 0;
+    var numberOfAnswered = 0;
+
+    var questionData;
+
+    async function loadData() {
+        try {
+            const res = await fetch("https://YOUR-RENDER-URL.onrender.com/questions");
+            const data = await res.json();
+
+            introText.innerHTML = data.introText;
+            videoTitle.textContent = data.title;
+            videoElem.src = data.videoUrl;  // e.g. https://render/files/video.mp4
+            questionData = data.questions;
+
+            nextQuestionTime = questionData[0].timeStamp;
+        } catch (err) {
+            console.error("Failed to load test data:", err);
+            alert("Could not load assessment data.");
+        }
+    }
+
+    function formatTime(time) {
+        time = Math.floor(time);
+        var mins = Math.floor(time / 60).toString();
+        var secs = (time % 60).toString();
+        return mins + ":" + (secs.length == 1 ? "0" : "") + secs;
+    }
+
+    function submitAnswer(isNotSure) {
+        var value;
+        if (isNotSure) value = "not-sure";
+        else {
+            for (var elem of radios.querySelectorAll("input[type=radio]")) {
+                if (elem.checked) value = elem.value;
+            }
+            if (value == null) {
+                alert("Please select one of the options.");
+                return;
+            }
+        }
+        document.getElementById("skip").style = "display:none";
+        document.getElementById("submit").style = "display:none";
+        document.getElementById("continue").style = "display:block";
+        for (var elem of radios.children) {
+            if (elem.tagName == "INPUT") elem.disabled = true;
+        }
+
+        if(value == questionData[currentQuestion]["correctAnswer"]) numberOfCorrect++;
+        numberOfAnswered++;
+
+        responses["q"+(currentQuestion+1)] = value;
+    }
+    
+    function showQuestion() {
+        questionTitle.textContent = "Question " + (currentQuestion + 1);
+        questionTitle.style = "visibility: visible;";
+
+        promptElem.textContent = questionData[currentQuestion]["prompt"];
+        radios.style = "display:block";
+
+        var answers = questionData[currentQuestion]["choices"];
+        for(var ans of answers) {
+            radios.innerHTML += `<input type="radio" id="${ans}" name="radio" value="${ans}"><label for="${ans}">${ans}</label><br>`;
+        }
+        
+        document.getElementById("skip").style = "display:block";
+        document.getElementById("submit").style = "display:block";
+    }
+
+    function continueVideo() {
+        document.getElementById("continue").style = "display:none";
+        radios.style = "display:none";
+        radios.innerHTML = "";
+        questionTitle.style = "visibility: hidden;";
+        promptElem.textContent = "There are currently no questions to answer.";
+        videoElem.play();
+        questionShown = false;
+        currentQuestion++;
+        if(questionData.length > currentQuestion) nextQuestionTime = questionData[currentQuestion]["timeStamp"];
+        else nextQuestionTime = "0:00";
+    }
+
+    function startTest() {
+        document.getElementById("pretest-box").style.display = "none";
+        document.getElementById("container").style.overflowY = "hidden";
+        document.getElementById("skip").style = "display:none";
+        document.getElementById("submit").style = "display:none";
+        boxElem.style = "display: grid";
+        continueVideo();
+        setInterval(function () {
+            var num = formatTime(videoElem.currentTime);
+            timeLabel.textContent = num + "/" + formatTime(videoElem.duration);
+            if(num == nextQuestionTime && !questionShown) {
+                videoElem.pause();
+                showQuestion();
+                questionShown = true;
+            }
+        }, 100);
+    }
+
+    videoElem.addEventListener("contextmenu", function (e) {
+        e.preventDefault();
+    });
+
+    loadData();
+</script>
+
+</html>
