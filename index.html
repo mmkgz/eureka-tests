@@ -51,6 +51,7 @@
     html {
         background-color: whitesmoke;
     }
+
     #container {
         position: absolute;
         left: 0;
@@ -187,7 +188,7 @@
                 et suscipit turpis tincidunt at. Curabitur rhoncus euismod nisl, in mattis tortor consectetur sed?</p>
             <br>
             <div id="radios">
-                
+
             </div><br>
             <div id="buttons">
                 <button id="skip" onclick="submitAnswer(true)">I'm not sure</button>
@@ -196,15 +197,55 @@
             </div>
         </div>
     </div>
-    <div id="pretest-box">
+    <div id="pretest-box" style="display: none;">
         <h1>Your Assessment</h1>
         <div style="margin: 0 40px;text-align: left;" id="intro-text">
-            
+
         </div>
         <button onclick="startTest()">Start Assessment</button>
     </div>
+    <div id="login-box">
+        <h2>Login</h2>
+        <input type="text" id="username" placeholder="Username">
+        <input type="password" id="password" placeholder="Password">
+        <button onclick="login()">Login</button>
+        <p id="login-error" style="color:red"></p>
+    </div>
 </div>
-<script src = "testdata_01.js"></script>
+<script>
+    let jwtToken = null;
+    let currentUser = null;
+
+    async function login() {
+        const username = document.getElementById("username").value;
+        const password = document.getElementById("password").value;
+
+        try {
+            const res = await fetch("https://eureka-tests-backend.onrender.com/api/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username, password })
+            });
+
+            const data = await res.json();
+            if (res.ok) {
+                jwtToken = data.token;
+                currentUser = username;
+
+                document.getElementById("login-box").style.display = "none";
+                document.getElementById("pretest-box").style.display = "block";
+
+                // Now you can load video + questions
+                loadData();
+            } else {
+                document.getElementById("login-error").textContent = data.error;
+            }
+        } catch (err) {
+            console.error(err);
+            document.getElementById("login-error").textContent = "Login failed. Try again.";
+        }
+    }
+</script>
 <script>
     var boxElem = document.getElementById("box");
     var videoElem = document.getElementById("video");
@@ -219,14 +260,13 @@
     var currentQuestion = -1;
     var questionShown = false;
     var responses = {};
-    var numberOfCorrect = 0;
     var numberOfAnswered = 0;
 
     var questionData;
 
     async function loadData() {
         try {
-            const res = await fetch("https://YOUR-RENDER-URL.onrender.com/questions");
+            const res = await fetch("https://eureka-tests-backend.onrender.com/api/video-data");
             const data = await res.json();
 
             introText.innerHTML = data.introText;
@@ -267,12 +307,31 @@
             if (elem.tagName == "INPUT") elem.disabled = true;
         }
 
-        if(value == questionData[currentQuestion]["correctAnswer"]) numberOfCorrect++;
         numberOfAnswered++;
 
-        responses["q"+(currentQuestion+1)] = value;
+        responses["q" + (currentQuestion + 1)] = value;
     }
-    
+
+    async function submitResponses() {
+        const username = currentUser;
+        const token = jwtToken;
+        try {
+            const res = await fetch("https://YOUR-RENDER-URL.onrender.com/api/submit", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({ username, answers: responses })
+            });
+
+            const result = await res.json();
+            alert("Your responses have been saved. Thank you!");
+        } catch (err) {
+            console.error("Failed to submit responses", err);
+            alert("Submission failed.");
+        }
+    }
     function showQuestion() {
         questionTitle.textContent = "Question " + (currentQuestion + 1);
         questionTitle.style = "visibility: visible;";
@@ -281,10 +340,10 @@
         radios.style = "display:block";
 
         var answers = questionData[currentQuestion]["choices"];
-        for(var ans of answers) {
+        for (var ans of answers) {
             radios.innerHTML += `<input type="radio" id="${ans}" name="radio" value="${ans}"><label for="${ans}">${ans}</label><br>`;
         }
-        
+
         document.getElementById("skip").style = "display:block";
         document.getElementById("submit").style = "display:block";
     }
@@ -298,8 +357,14 @@
         videoElem.play();
         questionShown = false;
         currentQuestion++;
-        if(questionData.length > currentQuestion) nextQuestionTime = questionData[currentQuestion]["timeStamp"];
-        else nextQuestionTime = "0:00";
+        if (questionData.length > currentQuestion){ 
+            nextQuestionTime = questionData[currentQuestion]["timeStamp"];
+        }
+        else {
+            nextQuestionTime = "0:00";
+            submitResponses();
+        }
+
     }
 
     function startTest() {
@@ -312,7 +377,7 @@
         setInterval(function () {
             var num = formatTime(videoElem.currentTime);
             timeLabel.textContent = num + "/" + formatTime(videoElem.duration);
-            if(num == nextQuestionTime && !questionShown) {
+            if (num == nextQuestionTime && !questionShown) {
                 videoElem.pause();
                 showQuestion();
                 questionShown = true;
@@ -323,8 +388,6 @@
     videoElem.addEventListener("contextmenu", function (e) {
         e.preventDefault();
     });
-
-    loadData();
 </script>
 
 </html>
