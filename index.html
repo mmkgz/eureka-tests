@@ -79,7 +79,7 @@
     }
 
     #video-box {
-        
+
         position: relative;
         height: auto;
         grid-area: videobox;
@@ -88,6 +88,7 @@
 
     #video-box-slim {
         position: relative;
+        border-radius: 25px;
     }
 
     #video-box-slim #time-label {
@@ -130,8 +131,9 @@
         gap: 15px;
     }
 
+    #login-button,
     #buttons button {
-        padding: 0 25px;
+        padding: 10px 25px;
         background-color: rgba(255, 255, 255, 0.551);
         border-radius: 5px;
     }
@@ -144,7 +146,8 @@
         text-align: center;
     }
 
-    #pretest-box {
+    #pretest-box,
+    #login-box {
         position: absolute;
         left: 50%;
         transform: translateX(-50%);
@@ -158,6 +161,13 @@
         margin-bottom: 50px;
     }
 
+    #login-box input,
+    button {
+        margin-top: 5px;
+        font-size: 16px;
+        border-radius: 5px;
+    }
+
     #pretest-box ul,
     li {
         text-align: left;
@@ -169,6 +179,15 @@
         border-radius: 5px;
         height: 45px;
     }
+
+    .overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: transparent;
+    }
 </style>
 <div id="container">
     <div id="box" style="display: none;">
@@ -176,7 +195,9 @@
             <br><br><br><br>
             <h1 id="video-title">video title</h1>
             <div id="video-box-slim">
-                <iframe id = "video" allowfullscreen frameborder="0"referrerpolicy="strict-origin-when-cross-origin" title="video_1"></iframe>
+                <iframe id="video" allowfullscreen frameborder="0" referrerpolicy="strict-origin-when-cross-origin"
+                    title="video_1"></iframe>
+                <div class="overlay" id="video-overlay"></div>
                 <p id="time-label">0:00/0:00</p>
             </div>
 
@@ -196,25 +217,34 @@
             </div>
         </div>
     </div>
+
     <div id="pretest-box" style="display: none;">
         <h1>Your Assessment</h1>
         <div style="margin: 0 40px;text-align: left;" id="intro-text">
 
         </div>
-        <button onclick="startTest()">Start Assessment</button>
+        <button onclick="startTest()">Begin Assessment</button>
     </div>
     <div id="login-box">
         <h2>Login</h2>
-        <input type="text" id="username" placeholder="Username">
+        <input type="text" id="username" placeholder="Username"><br>
         <input type="password" id="password" placeholder="Password">
-        <button onclick="login()">Login</button>
+        <br>
+        <button id="login-button" onclick="login()">Login</button>
         <p id="login-error" style="color:red"></p>
+    </div>
+    <div id="end-box" style="display:none;">
+        <h1>Your results have been recorded.</h1>
+        <div style="margin: 0 40px;text-align: left;" id="intro-text">
+            <p>Thank you for participating. You will now be logged out securely.</p>
+        </div>
     </div>
 </div>
 <script src="https://player.vimeo.com/api/player.js"></script>
 <script>
     let jwtToken = null;
     let currentUser = null;
+    let currentSect = 0;
 
     async function login() {
         const username = document.getElementById("username").value;
@@ -236,7 +266,7 @@
                 document.getElementById("pretest-box").style.display = "block";
 
                 // Now you can load video + questions
-                loadData();
+                loadData(0);
             } else {
                 document.getElementById("login-error").textContent = data.error;
             }
@@ -259,25 +289,33 @@
     var nextQuestionTime;
     var currentQuestion = -1;
     var questionShown = false;
-    var responses = {};
+    var responses = [{},{}];
     var numberOfAnswered = 0;
 
     var questionData;
+    var questionBox = document.getElementById("questions-box");
 
     var player;
+    var currentTimer;
 
-    async function loadData() {
+    async function loadData(sect) {
         try {
-            const res = await fetch("https://eureka-tests-backend.onrender.com/api/video-data");
+            const res = await fetch("https://eureka-tests-backend.onrender.com/api/video-data?id=" + sect);
             const data = await res.json();
 
             introText.innerHTML = data.introText;
             videoTitle.textContent = data.title;
-            videoElem.src = data.videoUrl;  // e.g. https://render/files/video.mp4
-            player = new Vimeo.Player(videoElem);
-            questionData = data.questions;
 
-            nextQuestionTime = questionData[0].timeStamp;
+            videoElem.src = data.videoUrl;
+            player = new Vimeo.Player(videoElem);
+            player.loadVideo(data.videoUrl);
+
+            player.on("ended", endVideo);
+
+            if (sect != 1) {
+                questionData = data.questions;
+                nextQuestionTime = questionData[0].timeStamp;
+            }else questionData = [];
         } catch (err) {
             console.error("Failed to load test data:", err);
             alert("Could not load assessment data.");
@@ -312,7 +350,7 @@
 
         numberOfAnswered++;
 
-        responses["" + (currentQuestion + 1)] = value;
+        responses[currentSect == 0 ? 0 : 1]["" + (currentQuestion + 1)] = value;
     }
 
     async function submitResponses() {
@@ -360,24 +398,52 @@
         player.play();
         questionShown = false;
         currentQuestion++;
-        if (questionData.length > currentQuestion){ 
+        if (questionData.length > currentQuestion) {
             nextQuestionTime = questionData[currentQuestion]["timeStamp"];
         }
         else {
-            nextQuestionTime = "0:00";
-            submitResponses();
+            nextQuestionTime = "none";
         }
 
     }
 
+    function goToNextSection() {
+        videoElem.style.visibility = "visible";
+        boxElem.style.display = "none";
+        document.getElementById("continue").style = "display:none";
+        document.getElementById("video-box-slim").style.backgroundColor="transparent";
+        document.getElementById("continue").onclick = continueVideo;
+
+        currentSect++;
+        if (currentSect <= 2) {
+            loadData(currentSect);
+            document.getElementById("pretest-box").style.display = "block";
+        } else {
+            submitResponses();
+            document.getElementById("end-box").style.display = "block";
+        }
+    }
+
+    function endVideo() {
+        clearInterval(currentTimer);
+        videoElem.style.visibility = "hidden";
+        document.getElementById("video-box-slim").style.backgroundColor="black";
+        promptElem.textContent = "Press Continue when you are ready to move to the next section.";
+        document.getElementById("continue").onclick = goToNextSection;
+        document.getElementById("continue").style.display = "block";
+    }
+
     function startTest() {
         document.getElementById("pretest-box").style.display = "none";
+        introText.textContent = "Loading...";
         document.getElementById("container").style.overflowY = "hidden";
+
         document.getElementById("skip").style = "display:none";
         document.getElementById("submit").style = "display:none";
         boxElem.style = "display: grid";
+        currentQuestion = -1;
         continueVideo();
-        setInterval(async function () {
+        currentTimer = setInterval(async function () {
             var num = formatTime(await player.getCurrentTime());
             timeLabel.textContent = num + "/" + formatTime(await player.getDuration());
             if (num == nextQuestionTime && !questionShown) {
@@ -388,7 +454,7 @@
         }, 100);
     }
 
-    videoElem.addEventListener("contextmenu", function (e) {
+    document.getElementById("video-overlay").addEventListener("contextmenu", function (e) {
         e.preventDefault();
     });
 </script>
