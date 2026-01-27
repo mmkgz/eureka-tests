@@ -300,7 +300,11 @@
 
     async function loadData(sect) {
         try {
-            const res = await fetch("https://eureka-tests-backend.onrender.com/api/video-data?id=" + sect);
+            const res = await fetch("https://eureka-tests-backend.onrender.com/api/video-data?id=" + sect, {
+                headers: {
+                    "Authorization": `Bearer ${jwtToken}`
+                }
+            });
             const data = await res.json();
 
             introText.innerHTML = data.introText;
