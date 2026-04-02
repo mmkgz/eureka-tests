@@ -312,10 +312,7 @@
 
             videoElem.src = data.videoUrl;
             player = new Vimeo.Player(videoElem);
-            player.loadVideo(data.videoUrl).then(() => {
-                player.off("ended");
-                player.on("ended", endVideo);
-            });
+            player.loadVideo(data.videoUrl);
 
             if (sect != 1) {
                 questionData = data.questions;
@@ -455,6 +452,9 @@
                 player.pause();
                 showQuestion();
                 questionShown = true;
+            }
+            if (duration > 0 && currentTime >= duration - 0.5) {
+                endVideo();
             }
         }, 100);
     }
