@@ -446,6 +446,8 @@
         currentQuestion = -1;
         continueVideo();
         currentTimer = setInterval(async function () {
+            var currentTime = await player.getCurrentTime();
+            var duration = await player.getDuration();
             var num = formatTime(await player.getCurrentTime());
             timeLabel.textContent = num + "/" + formatTime(await player.getDuration());
             if (num == nextQuestionTime && !questionShown) {
